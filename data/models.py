@@ -1,11 +1,18 @@
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import Integer, String
+import datetime
 
-class Base(DeclarativeBase):
+from sqlalchemy.ext.asyncio import AsyncAttrs
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import Integer, String, JSON, DateTime
+
+
+class Base(AsyncAttrs, DeclarativeBase):
     pass
 
-class Table1(Base):
-    __tablename__ = "table1"
+class PublicTrade(Base):
+    __tablename__ = "public_trade"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String)
+    topic: Mapped[str] = mapped_column(String)
+    ts: Mapped[datetime.datetime] = mapped_column(DateTime)
+    type: Mapped[str] = mapped_column(String)
+    data: Mapped[str] = mapped_column(JSON)

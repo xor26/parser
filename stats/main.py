@@ -1,29 +1,16 @@
 from fastapi import FastAPI
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
-from data.db import SessionLocal
-from data.models import Table1
+from data.db import async_session
+from data.models import PublicTrade
 
 app = FastAPI()
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 @app.get("/")
-def root():
-    with SessionLocal() as db:
-        rows = db.query(Table1).all()
-
+async def root():
+    async with async_session() as session:
+        stmt = select(PublicTrade)
+        rows = await session.execute(stmt)
         return {
-            "count": len(rows),
-            "items": [
-                {"id": r.id, "name": r.name}
-                for r in rows
-            ],
+            "count": len(list(rows.scalars())),
         }
