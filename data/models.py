@@ -4,9 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import Integer, String, JSON, DateTime
 
+from data.db import engine
+
 
 class Base(AsyncAttrs, DeclarativeBase):
-    pass
+    async def reinit_base(self):
+        async with engine.begin() as conn:
+            await conn.run_sync(self.metadata.drop_all)
+            await conn.run_sync(self.metadata.create_all)
+
 
 class PublicTrade(Base):
     __tablename__ = "public_trade"

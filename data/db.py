@@ -1,5 +1,5 @@
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 import os
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
@@ -10,5 +10,3 @@ async_session = async_sessionmaker(
     autoflush=False,
     autocommit=False,
 )
-
-
