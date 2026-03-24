@@ -6,52 +6,39 @@ import websockets
 
 from data import db
 from data.models import PublicTrade, Base
+from parser.const import PUBLIC_SPOTS_URL, SUBSCRIPTIONS, PUB_MSG_CRITERIA
+
+class Parser:
+    def __init__(self):
+        pass
+
+    async def stream(self):
+        async with websockets.connect(PUBLIC_SPOTS_URL) as ws:
+            await ws.send(json.dumps(SUBSCRIPTIONS))
+            while True:
+                msg = await ws.recv()
+                msg = json.loads(msg)
+                if PUB_MSG_CRITERIA in msg:
+                    await self.process_pub_trade_msg(msg)
 
 
-async def stream():
-    url = "wss://stream.bybit.com/v5/public/spot"
+    async def process_pub_trade_msg(self, msg):
+        async with db.async_session() as session:
+            async with session.begin():
+                data = json.dumps(msg["data"])
+                ts = datetime.fromtimestamp(int(msg["ts"])/ 1e3)
+                trade = PublicTrade(topic=msg["topic"], ts=ts, type=msg["type"],data=data)
+                session.add(trade)
 
-    async with websockets.connect(url) as ws:
+    async def init_db(self,):
+        # todo move it to db dir
+        async with db.engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
 
-        sub = {
-            "op": "subscribe",
-            "args": [
-                "publicTrade.BTCUSDT",
-                "publicTrade.ETHUSDT",
-                "publicTrade.SOLUSDT",
-                "publicTrade.XRPUSDT",
-                "publicTrade.DOGEUSDT",
-                "publicTrade.ADAUSDT",
-                "publicTrade.AVAXUSDT",
-                "publicTrade.DOTUSDT",
-                "publicTrade.LINKUSDT",
-                "publicTrade.MATICUSDT",
-            ]
-        }
-
-        await ws.send(json.dumps(sub))
-
-        while True:
-            msg = await ws.recv()
-            async with db.async_session() as session:
-                async with session.begin():
-                    msg = json.loads(msg)
-                    if 'topic' not in msg:
-                        continue
-
-                    data = json.dumps(msg['data'])
-                    ts = datetime.fromtimestamp(int(msg['ts'])/ 1e3)
-                    trade = PublicTrade(topic=msg['topic'], ts=ts, type=msg['type'],data=data)
-                    session.add(trade)
-                    print('added')
+async def parser():
+    p = Parser()
+    await p.stream()
 
 
-
-async def init_db():
-    async with db.engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-        print("PURGED")
-        print(Base.metadata is Base.metadata)
-
-asyncio.run(stream())
+asyncio.run(parser())
